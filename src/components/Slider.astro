@@ -1,0 +1,75 @@
+---
+interface Props {
+  href: string;
+  src: string;
+}
+const { href, src }: Props = Astro.props;
+---
+
+<img src={src} data-href={href} />
+
+<portal-gate to="end:head">
+  <script is:inline>
+    let transitioning = false;
+    let entry, exit;
+    const img = document.querySelector("img");
+    img.addEventListener("mousedown", () => {
+      transitioning || (location.href = img.dataset.href);
+    });
+    addEventListener("pagereveal", (e) => {
+      if (!e || !e.viewTransition) return;
+      e.viewTransition.ready.then(() => {
+        transitioning = true;
+        exit = document
+          .getAnimations()
+          .find(
+            (a) => a.effect?.pseudoElement === "::view-transition-old(img)"
+          );
+        entry = document
+          .getAnimations()
+          .find(
+            (a) => a.effect?.pseudoElement === "::view-transition-new(img)"
+          );
+        addEventListener("mousemove", (e) => {
+          const pointInTime = 1000 - (e.x / innerWidth) * 1000;
+          exit.currentTime = entry.currentTime = pointInTime;
+        });
+
+        addEventListener("mouseup", play);
+      });
+      e.viewTransition.finished.then(() => {
+        transitioning = false;
+        removeEventListener("mouseup", play);
+      });
+      function play() {
+        console.log("playing");
+        entry.play();
+        exit.play();
+      }
+    });
+  </script>
+</portal-gate>
+
+<style is:global>
+  img {
+    view-transition-name: img;
+    width: 100%;
+    height: 50vh;
+  }
+  ::view-transition-old(img) {
+    animation: paused 1s linear shift-left-out;
+  }
+  ::view-transition-new(img) {
+    animation: paused 1s linear shift-left-in;
+  }
+  @keyframes shift-left-out {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes shift-left-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+</style>
